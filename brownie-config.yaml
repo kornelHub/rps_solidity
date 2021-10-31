@@ -1,0 +1,18 @@
+dotenv: .env
+dependencies:
+  - OpenZeppelin/openzeppelin-contracts@4.2.0
+compiler:
+  solc:
+    remappings:
+      - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
+networks:
+  kovan:
+    publish_source: True
+  ganache:
+    publish_source: False
+  development:
+    publish_source: False
+
+wallets:
+  rinkeby:
+    private_key: ${RINKEBY_ACC1_PRIVATE_KEY}
