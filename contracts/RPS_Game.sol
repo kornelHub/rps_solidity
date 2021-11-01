@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./RPS_Token.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract RPS_Game is Ownable{
     mapping(address => uint256) private balancesOfUsers;
@@ -39,8 +39,9 @@ contract RPS_Game is Ownable{
         balancesOfUsers[msg.sender] = balancesOfUsers[msg.sender] + valueInRPS;
     }
 
-    function withdrawFunds() public payable {
+    function withdrawFunds() public {
         require(balancesOfUsers[msg.sender] > 0, 'You dont have funds deposited in this contract!');
+        require(isPlayerInQueue(msg.sender) == false, "To withdraw money, you cant be waiting for game. Please quite game!");
         payable(msg.sender).transfer(balancesOfUsers[msg.sender] * ethRpsRatio);
         rpsToken.destroyTokens(balancesOfUsers[msg.sender]);
         balancesOfUsers[msg.sender] = 0;

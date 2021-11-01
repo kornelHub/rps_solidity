@@ -42,7 +42,7 @@ def test_multiple_deposit_funds_positive():
     account = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
     contract_balance_of_rps_token = rps_token.balanceOf(rps_game.address)
-    # Act
+    # Act / Assert
     rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited / rps_game.getEthRpsRatio()
     assert rps_token.balanceOf(rps_game.address) == contract_balance_of_rps_token + (
@@ -64,7 +64,9 @@ def test_withdraw_funds_positive():
     amount_deposited = Web3.toWei(1, 'ether')
     rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited / rps_game.getEthRpsRatio()
+    # Act
     rps_game.withdrawFunds({"from": account}).wait(1)
+    # Assert
     assert rps_game.getDepositedFundsValue(account.address) == 0
     assert rps_token.balanceOf(rps_game.address) == 0
 
@@ -74,8 +76,23 @@ def test_withdraw_with_zero_funds_fail():
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
+    # Act / Assert
     with pytest.raises(exceptions.VirtualMachineError):
         rps_game.withdrawFunds({"from": account}).wait(1)
+
+
+def test_withdraw_after_joining_game_fail():
+    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        pytest.skip("Olny for local testing")
+    # Arrange
+    rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
+    player_account_1 = get_account(index=1)
+    amount_deposited = Web3.toWei(1, 'ether')
+    rps_game.depositFunds({"from": player_account_1, "value": amount_deposited}).wait(1)
+    # Act / Assert
+    rps_game.joinGame(1, 1, {'from': player_account_1})
+    with pytest.raises(exceptions.VirtualMachineError):
+        rps_game.withdrawFunds({"from": player_account_1}).wait(1)
 
 
 def test_update_bid_values_positive():
@@ -87,7 +104,7 @@ def test_update_bid_values_positive():
     medium_bid = rps_game.getMediumBidValue()
     high_bid = rps_game.getHighBidValue()
     increment_value = 1
-    # Act
+    # Act / Assert
     rps_game.updateLowBidValue(low_bid + increment_value, {"from": owner_acc}).wait(1)
     assert rps_game.getLowBidValue() == low_bid + increment_value
     assert rps_game.getLinkBidWithValues(0) == low_bid + increment_value
@@ -111,6 +128,7 @@ def test_update_bid_value_bad_owner_fail():
     medium_bid = rps_game.getMediumBidValue()
     high_bid = rps_game.getHighBidValue()
     increment_value = 1
+    # Act / Assert
     with pytest.raises(exceptions.VirtualMachineError):
         rps_game.updateLowBidValue(low_bid + increment_value, {"from": not_owner_account}).wait(1)
     with pytest.raises(exceptions.VirtualMachineError):
@@ -134,13 +152,19 @@ def test_join_game_positive():
     player_account_1 = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
     rps_game.depositFunds({"from":player_account_1, "value": amount_deposited}).wait(1)
+    # Act
     rps_game.joinGame(1,1, {'from': player_account_1})
+    # Assert
     assert rps_game.isPlayerInQueue(player_account_1.address)
 
 
 def test_join_game_no_funds_fail():
+    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        pytest.skip("Olny for local testing")
+    # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
+    # Act / Assert
     with pytest.raises(exceptions.VirtualMachineError):
         rps_game.joinGame(1, 1, {'from': player_account_1})
 
@@ -154,6 +178,7 @@ def test_join_game_multiple_joins_fail():
     amount_deposited = Web3.toWei(1, 'ether')
     rps_game.depositFunds({"from": player_account_1, "value": amount_deposited}).wait(1)
     rps_game.joinGame(1, 1, {'from': player_account_1})
+    # Act / Assert
     with pytest.raises(exceptions.VirtualMachineError):
         rps_game.joinGame(1, 1, {'from': player_account_1})
 
@@ -186,7 +211,7 @@ def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid
     # Act
     rps_game.joinGame(player_1_symbol, bid_value, {'from': player_account_1})
     rps_game.joinGame(player_2_symbol, bid_value, {'from': player_account_2})
-
+    # Assert
     if (player_1_symbol == 0):
         if (player_2_symbol == 0):
             assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1
@@ -231,7 +256,9 @@ def test_quite_queue_positive():
     rps_game.depositFunds({"from":player_account_1, "value": amount_deposited}).wait(1)
     rps_game.joinGame(1,1, {'from': player_account_1})
     assert rps_game.isPlayerInQueue(player_account_1.address)
+    # Act
     rps_game.quiteQueue({"from": player_account_1})
+    # Assert
     assert rps_game.isPlayerInQueue(player_account_1.address) == False
 
 def test_quite_queue_without_joining_game_fail():
@@ -242,5 +269,6 @@ def test_quite_queue_without_joining_game_fail():
     player_account_1 = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
     rps_game.depositFunds({"from":player_account_1, "value": amount_deposited}).wait(1)
+    # Act / Arrange
     with pytest.raises(exceptions.VirtualMachineError):
         rps_game.quiteQueue({"from": player_account_1})
