@@ -5,10 +5,9 @@ import "./RPS_Token.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract RPS_Game is Ownable{
-    mapping(address => uint256) private balancesOfUsers;
     RPS_Token public rpsToken;
     // 1 ETH = 10000 RPS
-    uint256 private ethRpsRatio = 100000000000000;
+    uint256 private ethRpsRatio = 10000;
     enum RPS_AVAILABLE_SYMBOL{ROCK, PAPER, SCISSORS}
     uint256 private lowBid;
     uint256 private mediumBid;
@@ -23,9 +22,9 @@ contract RPS_Game is Ownable{
 
     constructor(address _rpsToken){
         rpsToken = RPS_Token(_rpsToken);
-        lowBid = 1;
-        mediumBid = 5;
-        highBid = 10;
+        lowBid = 1000000000000000000;
+        mediumBid = 5000000000000000000;
+        highBid = 10000000000000000000;
         linkBidWithValues[RPS_AVAILABLE_BID.LOW_BID] = lowBid;
         linkBidWithValues[RPS_AVAILABLE_BID.MEDIUM_BID] = mediumBid;
         linkBidWithValues[RPS_AVAILABLE_BID.HIGH_BID] = highBid;
@@ -34,21 +33,19 @@ contract RPS_Game is Ownable{
     function depositFunds() public payable {
         require(msg.value >= 100000000000000, 'Minimal value to deposit is 0.0001 ETH!');
         // 1 ETH = 10000 RPS
-        uint256 valueInRPS = msg.value / ethRpsRatio;
-        rpsToken.createNewTokensForGame(valueInRPS);
-        balancesOfUsers[msg.sender] = balancesOfUsers[msg.sender] + valueInRPS;
+        uint256 valueInRPS = msg.value * ethRpsRatio;
+        rpsToken.createNewTokensForGame(msg.sender, valueInRPS);
     }
 
     function withdrawFunds() public {
-        require(balancesOfUsers[msg.sender] > 0, 'You dont have funds deposited in this contract!');
+        require(getDepositedFundsValue(msg.sender) > 0, 'You dont have funds deposited in this contract!');
         require(isPlayerInQueue(msg.sender) == false, "To withdraw money, you cant be waiting for game. Please quite game!");
-        payable(msg.sender).transfer(balancesOfUsers[msg.sender] * ethRpsRatio);
-        rpsToken.destroyTokens(balancesOfUsers[msg.sender]);
-        balancesOfUsers[msg.sender] = 0;
+        payable(msg.sender).transfer(getDepositedFundsValue(msg.sender) / ethRpsRatio);
+        rpsToken.destroyTokens(msg.sender, getDepositedFundsValue(msg.sender));
     }
 
     function getDepositedFundsValue(address _userToCheck) public view returns(uint256) {
-        return balancesOfUsers[_userToCheck];
+        return rpsToken.balanceOf(_userToCheck);
     }
 
     function getEthRpsRatio() public view returns(uint256) {
@@ -117,29 +114,24 @@ contract RPS_Game is Ownable{
         RPS_AVAILABLE_BID _chosenBid) internal {
         if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.ROCK){
             if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.PAPER){
-                balancesOfUsers[_player1] = balancesOfUsers[_player1] - linkBidWithValues[_chosenBid];
-                balancesOfUsers[_player2] = balancesOfUsers[_player2] + linkBidWithValues[_chosenBid];
+                rpsToken.transferFrom(_player1, _player2, linkBidWithValues[_chosenBid]);
             } else if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.SCISSORS){
-                balancesOfUsers[_player1] = balancesOfUsers[_player1] + linkBidWithValues[_chosenBid];
-                balancesOfUsers[_player2] = balancesOfUsers[_player2] - linkBidWithValues[_chosenBid];
+                rpsToken.transferFrom(_player2, _player1, linkBidWithValues[_chosenBid]);
+
             }
         }
         if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.PAPER){
             if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.ROCK){
-                balancesOfUsers[_player1] = balancesOfUsers[_player1] + linkBidWithValues[_chosenBid];
-                balancesOfUsers[_player2] = balancesOfUsers[_player2] - linkBidWithValues[_chosenBid];
+                rpsToken.transferFrom(_player2, _player1, linkBidWithValues[_chosenBid]);
             } else if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.SCISSORS){
-                balancesOfUsers[_player1] = balancesOfUsers[_player1] - linkBidWithValues[_chosenBid];
-                balancesOfUsers[_player2] = balancesOfUsers[_player2] + linkBidWithValues[_chosenBid];
+                rpsToken.transferFrom(_player1, _player2, linkBidWithValues[_chosenBid]);
             }
         }
         if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.SCISSORS){
             if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.ROCK){
-                balancesOfUsers[_player1] = balancesOfUsers[_player1] - linkBidWithValues[_chosenBid];
-                balancesOfUsers[_player2] = balancesOfUsers[_player2] + linkBidWithValues[_chosenBid];
+                rpsToken.transferFrom(_player1, _player2, linkBidWithValues[_chosenBid]);
             } else if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.PAPER){
-                balancesOfUsers[_player1] = balancesOfUsers[_player1] + linkBidWithValues[_chosenBid];
-                balancesOfUsers[_player2] = balancesOfUsers[_player2] - linkBidWithValues[_chosenBid];
+                rpsToken.transferFrom(_player2, _player1, linkBidWithValues[_chosenBid]);
             }
         }
     }

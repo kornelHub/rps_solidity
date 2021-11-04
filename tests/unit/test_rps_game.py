@@ -12,12 +12,10 @@ def test_deposit_funds_positive():
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
-    contract_balance_of_rps_token = rps_token.balanceOf(rps_game.address)
     # Act
     rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
     # Assert
-    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited / rps_game.getEthRpsRatio()
-    assert rps_token.balanceOf(rps_game.address) == contract_balance_of_rps_token + (amount_deposited / rps_game.getEthRpsRatio())
+    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * rps_game.getEthRpsRatio()
 
 
 def test_deposit_funds_below_minimal_value_fail():
@@ -44,15 +42,11 @@ def test_multiple_deposit_funds_positive():
     contract_balance_of_rps_token = rps_token.balanceOf(rps_game.address)
     # Act / Assert
     rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
-    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited / rps_game.getEthRpsRatio()
-    assert rps_token.balanceOf(rps_game.address) == contract_balance_of_rps_token + (
-            amount_deposited / rps_game.getEthRpsRatio())
+    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * rps_game.getEthRpsRatio()
 
     contract_balance_of_rps_token = rps_token.balanceOf(rps_game.address)
     rps_game.depositFunds({"from": account, "value": amount_deposited}).wait(1)
-    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * 2 / rps_game.getEthRpsRatio()
-    assert rps_token.balanceOf(rps_game.address) == contract_balance_of_rps_token + (
-                amount_deposited / rps_game.getEthRpsRatio())
+    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * 2 * rps_game.getEthRpsRatio()
 
 
 def test_withdraw_funds_positive():
@@ -63,7 +57,7 @@ def test_withdraw_funds_positive():
     account = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
     rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
-    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited / rps_game.getEthRpsRatio()
+    assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * rps_game.getEthRpsRatio()
     # Act
     rps_game.withdrawFunds({"from": account}).wait(1)
     # Assert
@@ -184,13 +178,13 @@ def test_join_game_multiple_joins_fail():
 
 
 test_choose_winner_and_transfer_reward_data = [
-    (0, 0, 0), (0, 1, 0), (0, 2, 0),
-    (1, 0, 1), (1, 1, 1), (1, 2, 1),
-    (2, 0, 2), (2, 1, 2), (2, 2, 2),
+    (0, 0, 0, 'draw'), (0, 1, 0, 'p2'), (0, 2, 0, 'p1'),
+    (1, 0, 1, 'p1'), (1, 1, 1, 'draw'), (1, 2, 1, 'p2'),
+    (2, 0, 2, 'p2'), (2, 1, 2, 'p1'), (2, 2, 2, 'draw'),
 ]
 
-@pytest.mark.parametrize("player_1_symbol, player_2_symbol, bid_value", test_choose_winner_and_transfer_reward_data)
-def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid_value):
+@pytest.mark.parametrize("player_1_symbol, player_2_symbol, bid_value, winner", test_choose_winner_and_transfer_reward_data)
+def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid_value, winner):
     if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
         pytest.skip("Olny for local testing")
     # Arrange
@@ -207,10 +201,14 @@ def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid
         1: rps_game.getMediumBidValue(),
         2: rps_game.getHighBidValue()
     }
-
     # Act
-    rps_game.joinGame(player_1_symbol, bid_value, {'from': player_account_1})
-    rps_game.joinGame(player_2_symbol, bid_value, {'from': player_account_2})
+    if winner == 'p1':
+        rps_token.approve(rps_game.address, bid_value_dict[bid_value], {'from': player_account_2}).wait(1)
+    elif winner == 'p2':
+        rps_token.approve(rps_game.address, bid_value_dict[bid_value], {'from': player_account_1}).wait(1)
+
+    rps_game.joinGame(player_1_symbol, bid_value, {'from': player_account_1}).wait(1)
+    rps_game.joinGame(player_2_symbol, bid_value, {'from': player_account_2}).wait(1)
     # Assert
     if (player_1_symbol == 0):
         if (player_2_symbol == 0):
