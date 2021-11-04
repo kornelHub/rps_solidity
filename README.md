@@ -1,5 +1,8 @@
-Rock Paper Scissors made in Solidity
+Rock Paper Scissors made in Solidity. 
 
-RPS_Token on kovan: https://kovan.etherscan.io/address/0x1A4C259Cc5c7EdF434Adfd5263A22a5fa7A5846b
+!!! Important !!!
+To successfully join game you firstly need to approve RPS Game contract to spending RPS token in your behalf. To do this go to RPS Token address below and execute approve() func for 1 eth.
 
-RPS_Game on kovan: https://kovan.etherscan.io/address/0x2bad7bb97f5c493a14310727323748220e66120e
+RPS_Token on rinkeby: https://rinkeby.etherscan.io/address/0x45073f3025d2bc7ba389f5bc354ad3f9843c59df
+
+RPS_Game on rinkeby: https://rinkeby.etherscan.io/address/0x72df0f77e0655e9325952aa5a62d063137651022
