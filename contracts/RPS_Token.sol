@@ -20,7 +20,7 @@ contract RPS_Token is ERC20 {
         _burn(_addressToTransfer, _amount);
     }
 
-    function a(address _rpsGameAddress) public {
+    function setRPSGameAddress(address _rpsGameAddress) public {
         require(msg.sender == ownerAddress, "To call this function you need to be owner of this contract!");
         rpsGameAddress = _rpsGameAddress;
     }
