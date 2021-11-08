@@ -5,9 +5,8 @@ import pytest
 from web3 import Web3
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_deposit_funds_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
@@ -18,9 +17,8 @@ def test_deposit_funds_positive():
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * rps_game.getEthRpsRatio()
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_deposit_funds_below_minimal_value_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
@@ -32,9 +30,8 @@ def test_deposit_funds_below_minimal_value_fail():
     assert rps_token.balanceOf(rps_game.address) == contract_balance_of_rps_token
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_multiple_deposit_funds_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
@@ -49,9 +46,8 @@ def test_multiple_deposit_funds_positive():
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * 2 * rps_game.getEthRpsRatio()
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_withdraw_funds_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
@@ -64,9 +60,9 @@ def test_withdraw_funds_positive():
     assert rps_game.getDepositedFundsValue(account.address) == 0
     assert rps_token.balanceOf(rps_game.address) == 0
 
+
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_withdraw_with_zero_funds_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
@@ -75,9 +71,8 @@ def test_withdraw_with_zero_funds_fail():
         rps_game.withdrawFunds({"from": account}).wait(1)
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_withdraw_after_joining_game_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
@@ -89,9 +84,8 @@ def test_withdraw_after_joining_game_fail():
         rps_game.withdrawFunds({"from": player_account_1}).wait(1)
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_update_bid_values_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     low_bid = rps_game.getLowBidValue()
@@ -112,9 +106,8 @@ def test_update_bid_values_positive():
     assert rps_game.getLinkBidWithValues(2) == high_bid + increment_value
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_update_bid_value_bad_owner_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     not_owner_account = get_account(index=1)
@@ -138,9 +131,8 @@ def test_update_bid_value_bad_owner_fail():
     assert rps_game.getLinkBidWithValues(2) == rps_game.getHighBidValue()
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_join_game_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
@@ -152,9 +144,8 @@ def test_join_game_positive():
     assert rps_game.isPlayerInQueue(player_account_1.address)
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_join_game_no_funds_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
@@ -163,9 +154,8 @@ def test_join_game_no_funds_fail():
         rps_game.joinGame(1, 1, {'from': player_account_1})
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_join_game_multiple_joins_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
@@ -183,10 +173,9 @@ test_choose_winner_and_transfer_reward_data = [
     (2, 0, 2, 'p2'), (2, 1, 2, 'p1'), (2, 2, 2, 'draw'),
 ]
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 @pytest.mark.parametrize("player_1_symbol, player_2_symbol, bid_value, winner", test_choose_winner_and_transfer_reward_data)
 def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid_value, winner):
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
@@ -244,9 +233,8 @@ def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid
             assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2 - bid_value_dict[bid_value]
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_quite_queue_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
@@ -259,9 +247,9 @@ def test_quite_queue_positive():
     # Assert
     assert rps_game.isPlayerInQueue(player_account_1.address) == False
 
+
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_quite_queue_without_joining_game_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)

@@ -5,10 +5,8 @@ import pytest
 from web3 import Web3
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_create_new_tokens_for_game_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
-
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
@@ -17,10 +15,8 @@ def test_create_new_tokens_for_game_positive():
     assert rps_token.balanceOf(account.address) == (amount_deposited * rps_game.getEthRpsRatio()) + rps_balance_before
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_create_new_tokens_for_game_only_rps_game_modifier_fail():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
-
     owner_acc = get_account()
     rps_token = RPS_Token.deploy({'from': owner_acc},
                                  publish_source=config['networks'][network.show_active()]['publish_source'])
@@ -32,10 +28,8 @@ def test_create_new_tokens_for_game_only_rps_game_modifier_fail():
         rps_game.depositFunds({"from": player_acc, "value": amount_deposited})
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_burn_tokens_when_withdraw_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
-
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
@@ -46,10 +40,8 @@ def test_burn_tokens_when_withdraw_positive():
     assert rps_token.balanceOf(account.address) == 0
 
 
+@pytest.mark.require_network("development", "ganache", "ganache_local")
 def test_set_rps_game_address_positive():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        pytest.skip("Olny for local testing")
-
     owner_acc = get_account()
     rps_token = RPS_Token.deploy({'from': owner_acc},
                                  publish_source=config['networks'][network.show_active()]['publish_source'])
