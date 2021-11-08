@@ -1,6 +1,6 @@
 from scripts.helpful_scripts import get_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
 from scripts.deploy import deploy_rps_token_and_game
-from brownie import network, exceptions
+from brownie import network, reverts
 import pytest
 from web3 import Web3
 
@@ -27,7 +27,7 @@ def test_deposit_funds_below_minimal_value_fail():
     amount_deposited = Web3.toWei(0.00001, 'ether')
     contract_balance_of_rps_token = rps_token.balanceOf(rps_game.address)
     # Act/Assert
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts("Minimal value to deposit is 0.0001 ETH!"):
         rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
     assert rps_token.balanceOf(rps_game.address) == contract_balance_of_rps_token
 
@@ -71,7 +71,7 @@ def test_withdraw_with_zero_funds_fail():
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     account = get_account(index=1)
     # Act / Assert
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('You dont have funds deposited in this contract!'):
         rps_game.withdrawFunds({"from": account}).wait(1)
 
 
@@ -85,7 +85,7 @@ def test_withdraw_after_joining_game_fail():
     rps_game.depositFunds({"from": player_account_1, "value": amount_deposited}).wait(1)
     # Act / Assert
     rps_game.joinGame(1, 1, {'from': player_account_1})
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('To withdraw money, you cant be waiting for game. Please quite game!'):
         rps_game.withdrawFunds({"from": player_account_1}).wait(1)
 
 
@@ -123,11 +123,11 @@ def test_update_bid_value_bad_owner_fail():
     high_bid = rps_game.getHighBidValue()
     increment_value = 1
     # Act / Assert
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('Ownable: caller is not the owner'):
         rps_game.updateLowBidValue(low_bid + increment_value, {"from": not_owner_account}).wait(1)
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('Ownable: caller is not the owner'):
         rps_game.updateMediumBidValue(medium_bid + increment_value, {"from": not_owner_account}).wait(1)
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('Ownable: caller is not the owner'):
         rps_game.updateHighBidValue(high_bid + increment_value, {"from": not_owner_account}).wait(1)
 
     assert low_bid == rps_game.getLowBidValue()
@@ -159,7 +159,7 @@ def test_join_game_no_funds_fail():
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
     player_account_1 = get_account(index=1)
     # Act / Assert
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('You dont have enough funds to join game with this bid!'):
         rps_game.joinGame(1, 1, {'from': player_account_1})
 
 
@@ -173,7 +173,7 @@ def test_join_game_multiple_joins_fail():
     rps_game.depositFunds({"from": player_account_1, "value": amount_deposited}).wait(1)
     rps_game.joinGame(1, 1, {'from': player_account_1})
     # Act / Assert
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('You cant wait for 2 games at the same time! Quite queue or wait for match!'):
         rps_game.joinGame(1, 1, {'from': player_account_1})
 
 
@@ -268,5 +268,5 @@ def test_quite_queue_without_joining_game_fail():
     amount_deposited = Web3.toWei(1, 'ether')
     rps_game.depositFunds({"from":player_account_1, "value": amount_deposited}).wait(1)
     # Act / Arrange
-    with pytest.raises(exceptions.VirtualMachineError):
+    with reverts('You cant quite queue, if you arent in it!'):
         rps_game.quiteQueue({"from": player_account_1})
