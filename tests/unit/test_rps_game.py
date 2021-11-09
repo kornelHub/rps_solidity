@@ -1,6 +1,6 @@
-from scripts.helpful_scripts import get_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
+from scripts.helpful_scripts import get_account
 from scripts.deploy import deploy_rps_token_and_game
-from brownie import network, reverts
+from brownie import reverts
 import pytest
 from web3 import Web3
 
@@ -12,9 +12,12 @@ def test_deposit_funds_positive():
     account = get_account(index=1)
     amount_deposited = Web3.toWei(1, 'ether')
     # Act
-    rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
+    deposit_tx = rps_game.depositFunds({"from":account, "value": amount_deposited})
+    deposit_tx.wait(1)
     # Assert
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * rps_game.getEthRpsRatio()
+    assert deposit_tx.events['fundsDepositedEvent']['_addressOfAccount'] == account.address
+    assert deposit_tx.events['fundsDepositedEvent']['_amountDepositedInEth'] == amount_deposited
 
 
 @pytest.mark.require_network("development", "ganache", "ganache_local")
@@ -38,12 +41,18 @@ def test_multiple_deposit_funds_positive():
     amount_deposited = Web3.toWei(1, 'ether')
     contract_balance_of_rps_token = rps_token.balanceOf(rps_game.address)
     # Act / Assert
-    rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
+    deposit_tx = rps_game.depositFunds({"from":account, "value": amount_deposited})
+    deposit_tx.wait(1)
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * rps_game.getEthRpsRatio()
+    assert deposit_tx.events['fundsDepositedEvent']['_addressOfAccount'] == account.address
+    assert deposit_tx.events['fundsDepositedEvent']['_amountDepositedInEth'] == amount_deposited
 
     contract_balance_of_rps_token = rps_token.balanceOf(rps_game.address)
-    rps_game.depositFunds({"from": account, "value": amount_deposited}).wait(1)
+    deposit_tx = rps_game.depositFunds({"from": account, "value": amount_deposited})
+    deposit_tx.wait(1)
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * 2 * rps_game.getEthRpsRatio()
+    assert deposit_tx.events['fundsDepositedEvent']['_addressOfAccount'] == account.address
+    assert deposit_tx.events['fundsDepositedEvent']['_amountDepositedInEth'] == amount_deposited
 
 
 @pytest.mark.require_network("development", "ganache", "ganache_local")
@@ -55,10 +64,13 @@ def test_withdraw_funds_positive():
     rps_game.depositFunds({"from":account, "value": amount_deposited}).wait(1)
     assert rps_game.getDepositedFundsValue(account.address) == amount_deposited * rps_game.getEthRpsRatio()
     # Act
-    rps_game.withdrawFunds({"from": account}).wait(1)
+    withdraw_tx = rps_game.withdrawFunds({"from": account})
+    withdraw_tx.wait(1)
     # Assert
     assert rps_game.getDepositedFundsValue(account.address) == 0
     assert rps_token.balanceOf(rps_game.address) == 0
+    assert withdraw_tx.events['fundsWithdrawnEvent']['_addressOfAccount'] == account
+    assert withdraw_tx.events['fundsWithdrawnEvent']['_amountWithdrawnInEth'] == amount_deposited
 
 
 @pytest.mark.require_network("development", "ganache", "ganache_local")
@@ -139,9 +151,12 @@ def test_join_game_positive():
     amount_deposited = Web3.toWei(1, 'ether')
     rps_game.depositFunds({"from":player_account_1, "value": amount_deposited}).wait(1)
     # Act
-    rps_game.joinGame(1,1, {'from': player_account_1})
+    join_tx = rps_game.joinGame(1,1, {'from': player_account_1})
+    join_tx.wait(1)
     # Assert
     assert rps_game.isPlayerInQueue(player_account_1.address)
+    assert join_tx.events['joinedQueueEvent']['_addressOfPlayer'] == player_account_1
+    assert join_tx.events['joinedQueueEvent']['_chosenBid'] == 1
 
 
 @pytest.mark.require_network("development", "ganache", "ganache_local")
@@ -174,7 +189,10 @@ test_choose_winner_and_transfer_reward_data = [
 ]
 
 @pytest.mark.require_network("development", "ganache", "ganache_local")
-@pytest.mark.parametrize("player_1_symbol, player_2_symbol, bid_value, winner", test_choose_winner_and_transfer_reward_data)
+@pytest.mark.parametrize("player_1_symbol,"
+                         " player_2_symbol,"
+                         " bid_value, winner",
+                         test_choose_winner_and_transfer_reward_data)
 def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid_value, winner):
     # Arrange
     rps_token, rps_game, owner_acc = deploy_rps_token_and_game()
@@ -197,40 +215,68 @@ def test_choose_winner_and_transfer_reward(player_1_symbol, player_2_symbol, bid
         rps_token.approve(rps_game.address, bid_value_dict[bid_value], {'from': player_account_1}).wait(1)
 
     rps_game.joinGame(player_1_symbol, bid_value, {'from': player_account_1}).wait(1)
-    rps_game.joinGame(player_2_symbol, bid_value, {'from': player_account_2}).wait(1)
+    join_tx = rps_game.joinGame(player_2_symbol, bid_value, {'from': player_account_2})
+    join_tx.wait(1)
     # Assert
     if (player_1_symbol == 0):
         if (player_2_symbol == 0):
             assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1
             assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Draw'
         elif (player_2_symbol == 1):
-            assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1 - bid_value_dict[bid_value]
-            assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2 + bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_1.address) \
+                   == player_balance_1 - bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_2.address) \
+                   == player_balance_2 + bid_value_dict[bid_value]
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Winner: player2'
         elif (player_2_symbol == 2):
-            assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1 + bid_value_dict[bid_value]
-            assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2 - bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_1.address) \
+                   == player_balance_1 + bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_2.address) \
+                   == player_balance_2 - bid_value_dict[bid_value]
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Winner: player1'
 
     if (player_1_symbol == 1):
         if (player_2_symbol == 1):
             assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1
             assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Draw'
         elif (player_2_symbol == 0):
-            assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1 + bid_value_dict[bid_value]
-            assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2 - bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_1.address) \
+                   == player_balance_1 + bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_2.address) \
+                   == player_balance_2 - bid_value_dict[bid_value]
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Winner: player1'
         elif (player_2_symbol == 2):
-            assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1 - bid_value_dict[bid_value]
-            assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2 + bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_1.address) \
+                   == player_balance_1 - bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_2.address) \
+                   == player_balance_2 + bid_value_dict[bid_value]
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Winner: player2'
 
     if (player_1_symbol == 2):
         if (player_2_symbol == 2):
             assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1
             assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Draw'
         elif (player_2_symbol == 0):
-            assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1 - bid_value_dict[bid_value]
-            assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2 + bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_1.address) \
+                   == player_balance_1 - bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_2.address) \
+                   == player_balance_2 + bid_value_dict[bid_value]
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Winner: player2'
         elif (player_2_symbol == 1):
-            assert rps_game.getDepositedFundsValue(player_account_1.address) == player_balance_1 + bid_value_dict[bid_value]
-            assert rps_game.getDepositedFundsValue(player_account_2.address) == player_balance_2 - bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_1.address) \
+                   == player_balance_1 + bid_value_dict[bid_value]
+            assert rps_game.getDepositedFundsValue(player_account_2.address) \
+                   == player_balance_2 - bid_value_dict[bid_value]
+            assert join_tx.events['matchEndedEvent']['_matchResult'] == 'Winner: player1'
+
+    assert join_tx.events['matchEndedEvent']['_player1Address'] == player_account_1.address
+    assert join_tx.events['matchEndedEvent']['_player1Symbol'] == player_1_symbol
+    assert join_tx.events['matchEndedEvent']['_player2Address'] == player_account_2.address
+    assert join_tx.events['matchEndedEvent']['_player2Symbol'] == player_2_symbol
+    assert join_tx.events['matchEndedEvent']['_bidValue'] == bid_value
 
 
 @pytest.mark.require_network("development", "ganache", "ganache_local")

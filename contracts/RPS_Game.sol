@@ -19,6 +19,18 @@ contract RPS_Game is Ownable{
     mapping(address => RPS_AVAILABLE_SYMBOL) private linkAddressOfWaitingPlayerWithChosenMark;
     mapping(address => bool) private isPlayerWaitingForMatch;
 
+    event fundsDepositedEvent(address _addressOfAccount, uint256 _amountDepositedInEth);
+    event fundsWithdrawnEvent(address _addressOfAccount, uint256 _amountWithdrawnInEth);
+    event joinedQueueEvent(address _addressOfPlayer, RPS_AVAILABLE_BID _chosenBid);
+    event quiteQueueEvent(address _addressOfPlayer, RPS_AVAILABLE_BID _chosenBid);
+    event matchEndedEvent(
+        address _player1Address,
+        RPS_AVAILABLE_SYMBOL _player1Symbol,
+        address _player2Address,
+        RPS_AVAILABLE_SYMBOL _player2Symbol,
+        RPS_AVAILABLE_BID _bidValue,
+        string _matchResult);
+
 
     constructor(address _rpsToken){
         rpsToken = RPS_Token(_rpsToken);
@@ -35,13 +47,16 @@ contract RPS_Game is Ownable{
         // 1 ETH = 10000 RPS
         uint256 valueInRPS = msg.value * ethRpsRatio;
         rpsToken.createNewTokensForGame(msg.sender, valueInRPS);
+        emit fundsDepositedEvent(msg.sender, msg.value);
     }
 
     function withdrawFunds() public {
         require(getDepositedFundsValue(msg.sender) > 0, 'You dont have funds deposited in this contract!');
         require(isPlayerInQueue(msg.sender) == false, "To withdraw money, you cant be waiting for game. Please quite game!");
-        payable(msg.sender).transfer(getDepositedFundsValue(msg.sender) / ethRpsRatio);
+        uint256 amountToWithdraw = getDepositedFundsValue(msg.sender) / ethRpsRatio;
+        payable(msg.sender).transfer(amountToWithdraw);
         rpsToken.destroyTokens(msg.sender, getDepositedFundsValue(msg.sender));
+        emit fundsWithdrawnEvent(msg.sender, amountToWithdraw);
     }
 
     function getDepositedFundsValue(address _userToCheck) public view returns(uint256) {
@@ -88,7 +103,6 @@ contract RPS_Game is Ownable{
     }
 
     function joinGame(RPS_AVAILABLE_SYMBOL _chosenSymbol, RPS_AVAILABLE_BID _chosenBid) public{
-        // add some require functions to check if user have enough funds to join game
         require(getDepositedFundsValue(msg.sender) >= getLinkBidWithValues(_chosenBid), "You dont have enough funds to join game with this bid!");
         require(isPlayerWaitingForMatch[msg.sender] == false, "You cant wait for 2 games at the same time! Quite queue or wait for match!");
         // no waiting player with selected bid
@@ -96,12 +110,14 @@ contract RPS_Game is Ownable{
             linkBidWithWaitingPlayerAddress[_chosenBid] = msg.sender;
             linkAddressOfWaitingPlayerWithChosenMark[msg.sender] = _chosenSymbol;
             isPlayerWaitingForMatch[msg.sender] = true;
+            emit joinedQueueEvent(msg.sender, _chosenBid);
         } else { //there is waiting player for selected bid
             address _player1 = linkBidWithWaitingPlayerAddress[_chosenBid];
             delete linkBidWithWaitingPlayerAddress[_chosenBid];
             RPS_AVAILABLE_SYMBOL _chosenSymbol1 = linkAddressOfWaitingPlayerWithChosenMark[_player1];
             delete linkAddressOfWaitingPlayerWithChosenMark[_player1];
             delete isPlayerWaitingForMatch[_player1];
+            emit joinedQueueEvent(msg.sender, _chosenBid);
             chooseWinnerAndTransferReward(_player1, _chosenSymbol1, msg.sender, _chosenSymbol, _chosenBid);
         }
     }
@@ -112,38 +128,52 @@ contract RPS_Game is Ownable{
         address _player2,
         RPS_AVAILABLE_SYMBOL _chosenSymbol2,
         RPS_AVAILABLE_BID _chosenBid) internal {
+        string memory matchResult;
         if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.ROCK){
             if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.PAPER){
                 rpsToken.transferFrom(_player1, _player2, linkBidWithValues[_chosenBid]);
+                matchResult = 'Winner: player2';
             } else if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.SCISSORS){
                 rpsToken.transferFrom(_player2, _player1, linkBidWithValues[_chosenBid]);
-
+                matchResult = 'Winner: player1';
+            } else {
+                matchResult = 'Draw';
             }
-        }
-        if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.PAPER){
+        } else if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.PAPER){
             if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.ROCK){
                 rpsToken.transferFrom(_player2, _player1, linkBidWithValues[_chosenBid]);
+                matchResult = 'Winner: player1';
             } else if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.SCISSORS){
                 rpsToken.transferFrom(_player1, _player2, linkBidWithValues[_chosenBid]);
+                matchResult = 'Winner: player2';
+            } else {
+                matchResult = 'Draw';
             }
-        }
-        if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.SCISSORS){
+        } else if (_chosenSymbol1 == RPS_AVAILABLE_SYMBOL.SCISSORS){
             if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.ROCK){
                 rpsToken.transferFrom(_player1, _player2, linkBidWithValues[_chosenBid]);
+                matchResult = 'Winner: player2';
             } else if (_chosenSymbol2 == RPS_AVAILABLE_SYMBOL.PAPER){
                 rpsToken.transferFrom(_player2, _player1, linkBidWithValues[_chosenBid]);
+                matchResult = 'Winner: player1';
+            } else {
+                matchResult = 'Draw';
             }
         }
+        emit matchEndedEvent(_player1, _chosenSymbol1, _player2, _chosenSymbol2, _chosenBid, matchResult);
     }
 
     function quiteQueue() public {
         require(isPlayerWaitingForMatch[msg.sender] == true, "You cant quite queue, if you arent in it!");
         if (linkBidWithWaitingPlayerAddress[RPS_AVAILABLE_BID.LOW_BID] == msg.sender){
             delete linkBidWithWaitingPlayerAddress[RPS_AVAILABLE_BID.LOW_BID];
+            emit quiteQueueEvent(msg.sender, RPS_AVAILABLE_BID.LOW_BID);
         } else if (linkBidWithWaitingPlayerAddress[RPS_AVAILABLE_BID.MEDIUM_BID] == msg.sender){
             delete linkBidWithWaitingPlayerAddress[RPS_AVAILABLE_BID.MEDIUM_BID];
+            emit quiteQueueEvent(msg.sender, RPS_AVAILABLE_BID.MEDIUM_BID);
         } else if (linkBidWithWaitingPlayerAddress[RPS_AVAILABLE_BID.HIGH_BID] == msg.sender) {
             delete linkBidWithWaitingPlayerAddress[RPS_AVAILABLE_BID.HIGH_BID];
+            emit quiteQueueEvent(msg.sender, RPS_AVAILABLE_BID.HIGH_BID);
         }
         delete isPlayerWaitingForMatch[msg.sender];
         delete linkAddressOfWaitingPlayerWithChosenMark[msg.sender];
